@@ -158,7 +158,7 @@ swigenv.Append(SWIG="3.0")
 swigenv.Append(CPPPATH=[distutils.sysconfig.get_python_inc()])
 pyswig = swigenv.SharedLibrary("_clstm.so",
                                ["clstm.i", "clstm.cc", "clstm_proto.cc", "extras.cc",
-                                "clstm.pb.cc", "clstm_compute.cc",
+                                "clstm.pb.cc", "clstm_compute.cc","batches.cc","tensor.cc",
                                "clstm_prefab.cc", "ctc.cc"],
                                SWIGFLAGS=['-python', '-c++'],
                                SHLIBPREFIX="",
