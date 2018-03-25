@@ -1,51 +1,85 @@
-#!/usr/bin/env python
+import os
+from setuptools import setup
+from setuptools.extension import Extension
+from distutils.command.build import build
+from distutils.command.build_ext import build_ext
 
-import os, os.path
-from distutils.core import setup, Extension
-from numpy.distutils.misc_util import get_numpy_include_dirs
-from os.path import getctime
+custom_cmd_class = {}
 
-import distutils.sysconfig
-config = distutils.sysconfig.get_config_vars()
-# OPT=-DNDEBUG -g -fwrapv -O2 -Wall -Wstrict-prototypes
-# CFLAGS
-for k,v in config.items():
-  if type(v)==str and "-W" in v:
-    print k,v
-def remove_warnings(opt):
-  opt = opt.split()
-  opt = [s for s in opt if not s.startswith("-W")]
-  return " ".join(opt)
-config["OPT"] = remove_warnings(config["OPT"])
-config["CFLAGS"] = remove_warnings(config["CFLAGS"])
-config["CONFIGURE_CFLAGS"] = remove_warnings(config["CONFIGURE_CFLAGS"])
-config["LDSHARED"] = remove_warnings(config["LDSHARED"])
+class CustomBuild(build):
+    sub_commands = [
+        ('build_ext', build.has_ext_modules),
+        ('build_py', build.has_pure_modules),
+        ('build_clib', build.has_c_libraries),
+        ('build_scripts', build.has_scripts),
+    ]
 
-# hgversion = os.popen("hg -q id").read().strip()
-hgversion = "unknown"
+custom_cmd_class['build'] = CustomBuild
 
-include_dirs = ['/usr/include/eigen3', '/usr/local/include/eigen3', '/usr/local/include', '/usr/include/hdf5/serial'] + get_numpy_include_dirs()
-swig_opts = ["-c++"] + ["-I" + d for d in include_dirs]
-swiglib = os.popen("swig -swiglib").read()[:-1]
+try:
+    from wheel.bdist_wheel import bdist_wheel
 
-if not os.path.exists("clstm.pb.cc") or \
-    getctime("clstm.pb.cc") < getctime("clstm.proto"):
-  print "making proto file"
-  os.system("protoc clstm.proto --cpp_out=.")
+    class CustomBdistWheel(bdist_wheel):
+        def run(self):
+            self.run_command('build_ext')
+            bdist_wheel.run(self)
+
+    custom_cmd_class['bdist_wheel'] = CustomBdistWheel
+except ImportError:
+    pass  # custom command not needed if wheel is not installed
+
+class CustomBuildExt(build_ext):
+    def finalize_options(self):
+        build_ext.finalize_options(self)
+        # Prevent numpy from thinking it is still in its setup process:
+        __builtins__.__NUMPY_SETUP__ = False
+        import numpy
+        self.include_dirs.append(numpy.get_include())
+        self.swig_opts.extend(["-c++"] + ["-I" + d for d in self.include_dirs])
+
+custom_cmd_class['build_ext'] = CustomBuildExt
+
+build_requires= []
+
+try:
+    import numpy
+except ImportError:
+    build_requires = ['numpy>=1.9.0']
+
+hgversion = 'unknown'
 
 clstm = Extension('_clstm',
         libraries = ['png','protobuf'],
-        swig_opts = swig_opts,
-        include_dirs = include_dirs,
-        extra_compile_args = ['-std=c++11','-Wno-sign-compare',
+        include_dirs = ['/usr/include/eigen3', '/usr/local/include/eigen3', '/usr/local/include', '/usr/include/hdf5/serial'],
+        extra_compile_args = ['-std=c++11','-w',
             '-Dadd_raw=add','-DNODISPLAY=1','-DTHROW=throw',
             '-DHGVERSION="\\"'+hgversion+'\\""'],
-        sources=['clstm.i','clstm.cc','clstm_prefab.cc','extras.cc', 'batches.cc',
-                 'clstm_compute.cc', 'ctc.cc','clstm_proto.cc','clstm.pb.cc'])
+        sources=['clstm.i','clstm.cc','clstm_prefab.cc','extras.cc',
+                 'ctc.cc','clstm_proto.cc','clstm.pb.cc'])
 
-setup (name = 'clstm',
-       version = '0.0',
-       author      = "Thomas Breuel",
-       description = """clstm library bindings""",
-       ext_modules = [clstm],
-       py_modules = ["clstm"])
+print("making proto file")
+os.system("protoc clstm.proto --cpp_out=.")
+
+setup(
+    name='clstm',
+    version='0.0.5',
+    cmdclass=custom_cmd_class,
+    author='Thomas Breuel',
+    description='clstm - swig python bindings for the clstm library',
+    license='Apache 2.0',
+    url='https://github.com/tmbdev/clstm',
+    long_description='',
+    classifiers=[
+        'Topic :: Scientific/Engineering',
+        'Topic :: Software Development',
+        'Intended Audience :: Science/Research',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+    ],
+    py_modules = ["clstm"],
+    ext_modules = [clstm],
+    setup_requires = build_requires,
+    install_requires = ['numpy>=1.9.0'],
+)
