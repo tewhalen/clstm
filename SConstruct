@@ -112,8 +112,8 @@ cuda = env.Object("clstm_compute_cuda.o", "clstm_compute_cuda.cc",
 # Build the CLSTM library.
 
 libsrc = ["clstm.cc", "ctc.cc", "clstm_proto.cc", "clstm_prefab.cc",
-          "tensor.cc", "batches.cc", "extras.cc", "clstm.pb.cc", 
-          "clstm_compute.cc"]
+          "extras.cc", "clstm.pb.cc"]
+
 if option("gpu", 0):
   env.Append(LIBS=["cudart","cublas","cuda"])
   env.Append(LIBPATH=["/usr/local/cuda/lib64"])
@@ -158,7 +158,7 @@ swigenv.Append(SWIG="3.0")
 swigenv.Append(CPPPATH=[distutils.sysconfig.get_python_inc()])
 pyswig = swigenv.SharedLibrary("_clstm.so",
                                ["clstm.i", "clstm.cc", "clstm_proto.cc", "extras.cc",
-                                "clstm.pb.cc", "clstm_compute.cc","batches.cc","tensor.cc",
+                                "clstm.pb.cc",
                                "clstm_prefab.cc", "ctc.cc"],
                                SWIGFLAGS=['-python', '-c++'],
                                SHLIBPREFIX="",

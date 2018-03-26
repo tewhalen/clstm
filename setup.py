@@ -11,7 +11,7 @@ include_dirs = ['/usr/include/eigen3', '/usr/local/include/eigen3', '/usr/local/
 swig_opts = ["-c++"] + ["-I" + d for d in include_dirs]
 swiglib = os.popen("swig -swiglib").read()[:-1]
 
-print "making proto file"
+print("making proto file")
 os.system("protoc clstm.proto --cpp_out=.")
 
 clstm = Extension('_clstm',
