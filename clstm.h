@@ -23,6 +23,7 @@ using std::map;
 using std::shared_ptr;
 using std::unique_ptr;
 using std::function;
+using std::isnan;
 
 void throwf(const char *format, ...);
 extern char exception_message[256];
